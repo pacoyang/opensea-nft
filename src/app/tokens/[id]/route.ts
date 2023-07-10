@@ -30,6 +30,9 @@ export async function GET(
   if (token_data) {
     return NextResponse.json(token_data)
   }
+  if (parseInt(params.id, 10) > 3) {
+    return NextResponse.json(metadata['1'])
+  }
   return NextResponse.json(metadata[params.id])
 }
 
