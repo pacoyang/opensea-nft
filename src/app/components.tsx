@@ -107,7 +107,7 @@ const config = createConfig({
   publicClient,
 })
 
-const useIsMounted = () => {
+export const useIsMounted = () => {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   return mounted
@@ -143,9 +143,6 @@ export function MintSection() {
   const { isLoading: isMintLoading, isSuccess: isMintSuccess } = useWaitForTransaction({
     hash: data?.hash,
   })
-  const handleMint = () => {
-    console.info(recipient)
-  }
 
   return (
     <section className="flex flex-col gap-6">

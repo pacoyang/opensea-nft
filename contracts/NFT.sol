@@ -12,7 +12,9 @@ contract NFT is ERC721, Ownable {
 
   string public baseTokenURI;
 
-  constructor() ERC721("NFTTest", "NFT") {
+  event NewOwner(address indexed sender, uint256 token_id);
+
+  constructor() ERC721("Pokemon", "PKMN") {
     baseTokenURI = "";
   }
 
@@ -20,6 +22,7 @@ contract NFT is ERC721, Ownable {
     currentTokenId.increment();
     uint256 newItemId = currentTokenId.current();
     _safeMint(recipient, newItemId);
+    emit NewOwner(msg.sender, newItemId);
     return newItemId;
   }
 
