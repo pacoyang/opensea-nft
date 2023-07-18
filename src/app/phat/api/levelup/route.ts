@@ -8,7 +8,6 @@ import fs from 'fs'
 import path from 'path'
 
 const RPC_TESTNET_URL = 'wss://poc5.phala.network/ws'
-const CONTRACT_ID = '0x3489b4d5de3197c302fd8568c6b6c36123681393b20dfef491fcbb6d778262b8'
 
 const levelup = async (tokenId: number, address: string) => {
   const api = await ApiPromise.create(options({
@@ -21,8 +20,8 @@ const levelup = async (tokenId: number, address: string) => {
   const abi = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'phat_contracts/phala_nft_collection.json'), 'utf-8')
   )
-  const contractKey = await phatRegistry.getContractKeyOrFail(CONTRACT_ID)
-  const contract = new PinkContractPromise(api, phatRegistry, abi, CONTRACT_ID, contractKey)
+  const contractKey = await phatRegistry.getContractKeyOrFail(process.env.PHAT_CONTRACT_ID!)
+  const contract = new PinkContractPromise(api, phatRegistry, abi, process.env.CONTRACT_ID!, contractKey)
   const cert = await signCertificate({ pair, api })
   const { gasRequired, storageDeposit, result, output } = await contract.query.levelup(pair.address, { cert }, Number(tokenId), address)
   const promise = new Promise(async (resolve, reject) => {
@@ -48,4 +47,3 @@ export async function POST(request: NextRequest) {
   const result: any = await levelup(token, subAddressFromEvmPublicKey)
   return NextResponse.json(result['ok'])
 }
-

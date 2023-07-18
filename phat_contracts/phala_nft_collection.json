@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0x96775c110985856f743cabdeb11791f6fd4b477d7ec32eda510f43c0ceffa73f",
+    "hash": "0xfa627a111327ef6a314f04cd9d7fd62e5ff8f366aed6e098ed3145adb5a80f1b",
     "language": "ink! 4.2.1",
     "compiler": "rustc 1.69.0",
     "build_info": {
@@ -220,7 +220,7 @@
         ],
         "default": false,
         "docs": [],
-        "label": "set_levelup_formula",
+        "label": "set_compute_formula",
         "mutates": true,
         "payable": false,
         "returnType": {
@@ -230,13 +230,13 @@
           ],
           "type": 11
         },
-        "selector": "0xc8a51e63"
+        "selector": "0x58f39a1a"
       },
       {
         "args": [],
         "default": false,
         "docs": [],
-        "label": "get_levelup_formula",
+        "label": "get_compute_formula",
         "mutates": false,
         "payable": false,
         "returnType": {
@@ -246,7 +246,7 @@
           ],
           "type": 11
         },
-        "selector": "0xa0493f10"
+        "selector": "0x1c2f5170"
       },
       {
         "args": [
@@ -500,7 +500,7 @@
                   }
                 }
               },
-              "name": "levelup_formula"
+              "name": "compute_formula"
             }
           ],
           "name": "PhalaNftCollection"
@@ -847,19 +847,23 @@
               },
               {
                 "index": 1,
-                "name": "NotReady"
+                "name": "TokenOwned"
               },
               {
                 "index": 2,
-                "name": "NotCollectionOwner"
+                "name": "NotReady"
               },
               {
                 "index": 3,
-                "name": "NotNftOwner"
+                "name": "NotCollectionOwner"
               },
               {
                 "index": 4,
-                "name": "LevelupFailed"
+                "name": "NotNftOwner"
+              },
+              {
+                "index": 5,
+                "name": "ComputeFailure"
               }
             ]
           }
@@ -1159,9 +1163,9 @@
           "variant": {}
         },
         "path": [
-          "ink_env",
-          "types",
-          "NoChainExtension"
+          "pink_extension",
+          "chain_extension",
+          "PinkExt"
         ]
       }
     }

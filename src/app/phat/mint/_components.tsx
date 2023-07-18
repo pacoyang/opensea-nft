@@ -1,19 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   WagmiConfig,
   createConfig,
-  configureChains,
   useConnect,
   useAccount,
   useDisconnect,
-  useNetwork,
   usePrepareContractWrite,
   useContractWrite,
   useWaitForTransaction,
   useSignMessage,
-  useContractEvent,
+  usePublicClient,
+  useNetwork,
 } from 'wagmi'
 import { publicProvider } from 'wagmi/providers/public'
 import { InjectedConnector } from 'wagmi/connectors/injected'
@@ -22,14 +21,15 @@ import { atom, useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
 import { useIsMounted } from '../../components'
-import NFT from '../../NFT.json'
+import NFT from '../../../../artifacts/contracts/NFT.sol/NFT.json'
 
 const RPC_TESTNET_URL = 'wss://poc5.phala.network/ws'
-const CONTRACT_ADDRESS = '0xF073E236595618f34195Ae524E18C99c1Fd9D19D'
+const CONTRACT_ADDRESS = '0x4903fbfBEDe118F47ee36A556FBd2A0151E0B490'
+const STORAGE_KEY_PREFIX = CONTRACT_ADDRESS.slice(0, 8)
 
-const tokenAtom = atomWithStorage('token', 0)
-const expAtom = atomWithStorage('exp', 0)
-const lvAtom = atomWithStorage('lv', 0)
+const tokenAtom = atomWithStorage(`${STORAGE_KEY_PREFIX}:token`, 0)
+const expAtom = atomWithStorage(`${STORAGE_KEY_PREFIX}:exp`, 0)
+const lvAtom = atomWithStorage(`${STORAGE_KEY_PREFIX}:lv`, 0)
 
 interface Attribute {
   trait_type: string
@@ -55,8 +55,47 @@ function getAttributeValueByTraitType(traitType: string, data: NftMetada): strin
   return attribute ? attribute.value : undefined
 }
 
-const updateMetadata = async (token: number) => {
-  await sleep(10)
+function useContractEvent({
+  address,
+  abi,
+  listener,
+  eventName,
+  account,
+}: any) {
+  const publicClient = usePublicClient()
+  const unwatch = useRef<() => void>()
+  useEffect(() => {
+    if (!abi || !address || !eventName || !account) return
+    unwatch.current = publicClient.watchContractEvent({
+      abi,
+      address,
+      eventName,
+      onLogs: listener,
+    })
+    return unwatch.current
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abi, address, eventName, publicClient.uid, account])
+  return unwatch.current
+}
+
+const updateMetadata = async (token: number, lv: number, exp: number) => {
+  let times = 0
+  while (true) {
+    console.info('times:', times)
+    if (times > 10) {
+      break
+    }
+    times += 1
+    const res = await fetch(`/phat/tokens/${token}`)
+    if (res.status === 200) {
+      const data = await res.json()
+      console.info(data)
+      if (getAttributeValueByTraitType('lv', data) === `${lv}`) {
+        break
+      }
+    }
+    await sleep(3)
+  }
   await fetch('/phat/api/update', {
     method: 'POST',
     headers: {
@@ -67,6 +106,7 @@ const updateMetadata = async (token: number) => {
 }
 
 export function MintSection() {
+  const { chain } = useNetwork()
   const [token, setToken] = useAtom(tokenAtom)
   const [exp, setExp] = useAtom(expAtom)
   const [lv, setLv] = useAtom(lvAtom)
@@ -88,13 +128,15 @@ export function MintSection() {
   })
 
   useContractEvent({
+    account: address,
     address: CONTRACT_ADDRESS,
     abi: NFT.abi,
     eventName: 'NewOwner',
     listener(events: any[]) {
-      console.info(events)
       if (events.length > 0) {
-        setToken(Number(events[0].args.token_id))
+        if (events[0].args.sender == address) {
+          setToken(Number(events[0].args.token_id))
+        }
       }
     },
   })
@@ -108,6 +150,9 @@ export function MintSection() {
             'Content-Type': 'application/json',
           },
         })
+        if (res.status !== 200) {
+          return
+        }
         const data = await res.json()
         if (data['err']) {
           setLv(0)
@@ -132,10 +177,10 @@ export function MintSection() {
   })
   const [claiming, setClaiming] = useState(false)
   const [ticking, setTicking] = useState(false)
-  const [upping, setUpping] = useState(false)
+  const [pendingLevelUp, setPendingLevelUp] = useState(false)
 
-  const handleUp = async () => {
-    setUpping(true)
+  const handleLevelUp = async () => {
+    setPendingLevelUp(true)
     const wsProvider = new WsProvider(RPC_TESTNET_URL)
     const api = await ApiPromise.create({ provider: wsProvider })
     const message = api.tx.system.remarkWithEvent('levelup').inner.toHex()
@@ -153,21 +198,20 @@ export function MintSection() {
       })
       const data = await res.json()
       if (data['err']) {
-        setUpping(false)
+        setPendingLevelUp(false)
         alert(data['err'])
         return
       }
-      await updateMetadata(token)
-      setUpping(false)
+      await updateMetadata(token, lv, exp)
+      setPendingLevelUp(false)
       window.alert(`Successfully, current lv${data['ok']}!`)
       console.info(data)
       setLv(data['ok'])
       setExp(0)
-      // update opensea metadata
     } catch(err) {
       console.error(err)
       window.alert('Fail to level-up')
-      setUpping(false)
+      setPendingLevelUp(false)
     }
   }
 
@@ -194,7 +238,7 @@ export function MintSection() {
         alert(data['err'])
         return
       }
-      await updateMetadata(token)
+      await updateMetadata(token, lv, exp)
       setTicking(false)
       console.info(data)
       window.alert('exp + 1')
@@ -221,15 +265,19 @@ export function MintSection() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message, signature, token }),
+        body: JSON.stringify({ message, signature, tokenId: token }),
       })
       const data = await res.json()
       if (data['err']) {
         setClaiming(false)
-        alert(data['err'])
+        window.alert(data['err'])
+        if (data['err'] === 'You are not owner') {
+          localStorage.clear()
+          window.location.reload()
+        }
         return
       }
-      await updateMetadata(token)
+      await updateMetadata(token, lv, exp)
       setClaiming(false)
       console.info(data)
       window.alert('Successfully claimed your NFT on Phala!')
@@ -243,10 +291,10 @@ export function MintSection() {
   return (
     <section className="flex flex-col gap-6">
       {
-        isMounted && isConnected && connector ? (
+        isMounted && isConnected && connector && chain && chain.name === 'Polygon Mumbai' ? (
           <>
             <div className="break-all">{address}</div>
-            <div>Connected to {connector!.name}</div>
+            <div>Connected to {connector!.name} on {chain!.name}</div>
             <button
               className="rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               onClick={() => disconnect()}
@@ -278,6 +326,10 @@ export function MintSection() {
               ) : null
             }
           </>
+        ) : isMounted && isConnected && connector && chain && chain.name !== 'Polygon Mumbai' ? (
+          <div className="text-center">
+            Please switch your wallet network to Polygon Mumbai
+          </div>
         ) : (
           <>
             {connectors.map((connector) => (
@@ -299,7 +351,7 @@ export function MintSection() {
         )
       }
       {
-        token > 0 ? (
+        isMounted && isConnected && connector && chain && chain.name === 'Polygon Mumbai' && token > 0 ? (
           <div className="mt-8 flex flex-col gap-6">
             <div className="text-center text-3xl">
                 🎉 New <a target="_blank" className="underline text-blue-500" href={`https://testnets.opensea.io/assets/mumbai/${CONTRACT_ADDRESS}/${token}`}>token #{token}</a> minted
@@ -308,23 +360,23 @@ export function MintSection() {
             <button
               className="rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
               onClick={handleClaimPhat}
-              disabled={claiming || ticking || upping}
+              disabled={claiming || ticking || pendingLevelUp}
             >
               {claiming ? 'Claiming...' : 'Claim on Phala' }
             </button>
             <button
               className="rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
               onClick={handleTick}
-              disabled={claiming || ticking || upping}
+              disabled={claiming || ticking || pendingLevelUp}
             >
               {ticking ? 'Ticking...' : 'Tick exp +1' }
             </button>
             <button
               className="rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
-              onClick={handleUp}
-              disabled={claiming || ticking || upping}
+              onClick={handleLevelUp}
+              disabled={claiming || ticking || pendingLevelUp}
             >
-              {upping ? 'Loading...' : 'Level-up'}
+              {pendingLevelUp ? 'Loading...' : 'Level-up'}
             </button>
           </div>
         ) : null

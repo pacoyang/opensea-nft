@@ -12,11 +12,11 @@ import {
   useContractWrite,
   useWaitForTransaction,
 } from 'wagmi'
-import { polygonMumbai } from '@wagmi/core/chains'
 import { publicProvider } from 'wagmi/providers/public'
 import { InjectedConnector } from 'wagmi/connectors/injected'
+import { polygonMumbai } from './polygonMumbai'
 
-import NFT from './NFT.json'
+import NFT from '../../artifacts/contracts/NFT.sol/NFT.json'
 
 export function Form() {
   const [loading, setLoading] = useState(false)
