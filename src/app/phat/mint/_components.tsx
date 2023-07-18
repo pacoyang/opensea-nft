@@ -90,7 +90,7 @@ const updateMetadata = async (token: number, lv: number, exp: number) => {
     if (res.status === 200) {
       const data = await res.json()
       console.info(data)
-      if (getAttributeValueByTraitType('lv', data) === `${lv}`) {
+      if (getAttributeValueByTraitType('lv', data) === `${lv}` && getAttributeValueByTraitType('exp', data) === `${exp}`) {
         break
       }
     }
@@ -202,7 +202,7 @@ export function MintSection() {
         alert(data['err'])
         return
       }
-      await updateMetadata(token, lv, exp)
+      await updateMetadata(token, data['ok'], 0)
       setPendingLevelUp(false)
       window.alert(`Successfully, current lv${data['ok']}!`)
       console.info(data)
@@ -238,11 +238,12 @@ export function MintSection() {
         alert(data['err'])
         return
       }
-      await updateMetadata(token, lv, exp)
+      const newExp = exp + 1
+      await updateMetadata(token, lv, newExp)
       setTicking(false)
       console.info(data)
       window.alert('exp + 1')
-      setExp(exp + 1)
+      setExp(newExp)
     } catch(err) {
       console.error(err)
       window.alert('Fail to tick')

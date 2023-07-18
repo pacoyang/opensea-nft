@@ -21,7 +21,7 @@ const levelup = async (tokenId: number, address: string) => {
     fs.readFileSync(path.join(process.cwd(), 'phat_contracts/phala_nft_collection.json'), 'utf-8')
   )
   const contractKey = await phatRegistry.getContractKeyOrFail(process.env.PHAT_CONTRACT_ID!)
-  const contract = new PinkContractPromise(api, phatRegistry, abi, process.env.CONTRACT_ID!, contractKey)
+  const contract = new PinkContractPromise(api, phatRegistry, abi, process.env.PHAT_CONTRACT_ID!, contractKey)
   const cert = await signCertificate({ pair, api })
   const { gasRequired, storageDeposit, result, output } = await contract.query.levelup(pair.address, { cert }, Number(tokenId), address)
   const promise = new Promise(async (resolve, reject) => {
