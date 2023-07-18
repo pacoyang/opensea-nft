@@ -363,7 +363,7 @@ export function MintSection() {
               onClick={handleClaimPhat}
               disabled={claiming || ticking || pendingLevelUp}
             >
-              {claiming ? 'Claiming...' : 'Claim on Phala' }
+              {claiming ? 'Minting...' : 'Mint on Phala' }
             </button>
             <button
               className="rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
